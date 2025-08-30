@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Расписание · неделя · iOS‑style</title>
+<style>
+  :root{
+    --ink:#0b0b0f; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7fb; --card:#ffffff;
+    --tint:#0a84ff; --tint-2:#d6e7ff; --shadow:0 10px 30px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Inter,Roboto,Arial,system-ui,"Apple Color Emoji","Segoe UI Emoji";
+  }
+  .app{
+    max-width:920px; margin:0 auto; padding:20px clamp(12px,3vw,24px) 32px;
+  }
+  .status{display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:12px; color:#4b5563; font-size:12px}
+  .chrome{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 14px; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; box-shadow:var(--shadow); position:sticky; top:10px; z-index:10;
+  }
+  .title{font-weight:700; letter-spacing:.2px; font-size:16px}
+  .segmented{display:inline-flex; background:#f3f4f6; border-radius:12px; padding:3px; border:1px solid var(--line)}
+  .segmented button{
+    appearance:none; border:0; background:transparent; padding:6px 10px; border-radius:9px; font-weight:600; color:#374151; cursor:pointer
+  }
+  .segmented button[aria-pressed="true"]{ background:#fff; color:#0b0b0f; box-shadow:0 1px 0 rgba(0,0,0,.03) inset }
+  .nav{
+    display:flex; align-items:center; gap:8px;
+  }
+  .iconbtn{
+    appearance:none; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .06s ease;
+  }
+  .iconbtn:active{ transform:scale(.98) }
+  .icon{width:18px; height:18px; display:block}
+  .daylabel{font-weight:700}
+  .sheet{margin-top:16px; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow)}
+  table{width:100%; border-collapse:separate; border-spacing:0}
+  thead th{ text-align:left; font-weight:700; font-size:12px; color:#374151; background:#f3f4f6; border-bottom:1px solid var(--line); padding:10px 12px }
+  tbody td{ padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top }
+  tbody tr:last-child td{ border-bottom:none }
+  .time{white-space:nowrap; font-weight:600}
+  .subject{font-weight:700}
+  .room{color:var(--muted)}
+  .note{color:var(--muted); font-size:12px}
+  .empty{ padding:28px; text-align:center; color:#6b7280 }
+  .footer{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px}
+  .badge{ padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:#374151; background:#fff; font-size:12px }
+  .actions{display:flex; gap:8px}
+  .btn{
+    appearance:none; border:1px solid var(--line); background:linear-gradient(180deg,#fff,#fbfbfd);
+    border-radius:10px; padding:10px 12px; font-weight:600; cursor:pointer
+  }
+  .btn.primary{ border-color:#bcd8ff; background:linear-gradient(180deg,#eef5ff,#e6f0ff); color:#0a4ea1 }
+  @page{ size:A4; margin:12mm }
+  @media print{
+    body{background:#fff}
+    .chrome{position:static; box-shadow:none}
+    .app{padding:0}
+  }
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="status">Расписание на школьную неделю · 1–5 сентября 2025 · 7 класс</div>
+    <div class="chrome" role="toolbar" aria-label="Навигация по дням">
+      <div class="title">Расписание</div>
+      <div class="segmented" role="group" aria-label="Неделя">
+        <button type="button" id="weekPrev" title="Предыдущая неделя" aria-label="Предыдущая неделя">‹</button>
+        <button type="button" aria-pressed="true" disabled>1–5&nbsp;сент.</button>
+        <button type="button" id="weekNext" title="Следующая неделя" aria-label="Следующая неделя">›</button>
+      </div>
+      <div class="nav">
+        <button class="iconbtn" id="prevDay" title="Предыдущий день" aria-label="Предыдущий день">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="daylabel" id="dayLabel" aria-live="polite">Пн · 1 сентября</div>
+        <button class="iconbtn" id="nextDay" title="Следующий день" aria-label="Следующий день">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="sheet">
+      <table aria-describedby="dayLabel">
+        <thead>
+          <tr>
+            <th style="width:18%">Время</th>
+            <th>Предмет</th>
+            <th style="width:28%">Кабинет / примечание</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td class="empty" colspan="3">Загрузка…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <div class="badge">Версия для печати · A4</div>
+      <div class="actions">
+        <button class="btn" id="todayBtn">Сегодня (Пн)</button>
+        <button class="btn primary" onclick="window.print()">Печать</button>
+      </div>
+    </div>
+  </div>
+<script>
+const schedule = [
+  { key:'mon', label:'Пн · 1 сентября', date:'1 сентября', items:[
+    {time:'08:30–09:15', subject:'Разговоры о важном', room:'к46', note:'7ИТ 25/26, Б20 33'},
+    {time:'09:25–10:10', subject:'Практикум по решению задач по информатике', room:'к46'},
+    {time:'10:30–11:15', subject:'Труд (технология)', room:'к55'},
+    {time:'11:35–12:20', subject:'Информатика', room:'к408'},
+    {time:'12:40–13:25', subject:'Информатика', room:'к48'},
+    {time:'13:45–14:30', subject:'Иностранный (английский) язык', room:'к20 А'},
+    {time:'14:50–15:35', subject:'Иностранный (английский) язык', room:'к20 А'}
+  ]},
+  { key:'tue', label:'Вт · 2 сентября', date:'2 сентября', items:[
+    {time:'08:30–09:15', subject:'Алгебра', room:'к46'},
+    {time:'09:25–10:10', subject:'Алгебра', room:'к46'},
+    {time:'10:30–11:15', subject:'История', room:'к46'},
+    {time:'11:35–12:20', subject:'Русский язык', room:'к46'},
+    {time:'12:40–13:25', subject:'Русский язык', room:'к46'},
+    {time:'13:45–14:30', subject:'Литература', room:'к46'},
+    {time:'14:50–15:35', subject:'Литература', room:'к46'}
+  ]},
+  { key:'wed', label:'Ср · 3 сентября', date:'3 сентября', items:[
+    {time:'08:30–09:15', subject:'Геометрия', room:'к304'},
+    {time:'09:25–10:10', subject:'Геометрия', room:'к304'},
+    {time:'10:30–11:15', subject:'Физика', room:'к46'},
+    {time:'11:35–12:20', subject:'Русский язык', room:'к46'},
+    {time:'12:40–13:25', subject:'Физика', room:'к46'},
+    {time:'13:45–14:30', subject:'Труд (технология)', room:'к55'}
+  ]},
+  { key:'thu', label:'Чт · 4 сентября', date:'4 сентября', items:[
+    {time:'08:30–09:15', subject:'Алгебра', room:'к46'},
+    {time:'09:25–10:10', subject:'Алгебра', room:'к304'},
+    {time:'10:30–11:15', subject:'География', room:'к46'},
+    {time:'11:35–12:20', subject:'Физическая культура', room:'кСЗ'},
+    {time:'12:40–13:25', subject:'География', room:'к46'},
+    {time:'13:45–14:30', subject:'Вероятность и статистика', room:'к304'},
+    {time:'14:50–15:35', subject:'Иностранный (английский) язык', room:'к20 А'}
+  ]},
+  { key:'fri', label:'Пт · 5 сентября', date:'5 сентября', items:[
+    {time:'08:30–09:15', subject:'История', room:'к46'},
+    {time:'09:25–10:10', subject:'Биология', room:'к46'},
+    {time:'10:30–11:15', subject:'Физика', room:'к46'},
+    {time:'11:35–12:20', subject:'Русский язык', room:'к46'},
+    {time:'12:40–13:25', subject:'Физическая культура', room:'кСЗ'},
+    {time:'13:45–14:30', subject:'История', room:'к46'}
+  ]}
+];
+let index = Number(localStorage.getItem('schedule_index') || 0);
+const tbody = document.getElementById('tbody');
+const dayLabel = document.getElementById('dayLabel');
+function render(){
+  const day = schedule[index];
+  dayLabel.textContent = day.label;
+  tbody.innerHTML = '';
+  if(!day.items || !day.items.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="empty" colspan="3">Нет занятий</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+  day.items.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="time">${row.time}</td>
+      <td class="subject">${row.subject}${row.note?`<div class="note">${row.note}</div>`:''}</td>
+      <td class="room">${row.room||''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  localStorage.setItem('schedule_index', index);
+}
+function prev(){ index = (index - 1 + schedule.length) % schedule.length; render(); }
+function next(){ index = (index + 1) % schedule.length; render(); }
+const prevBtn = document.getElementById('prevDay');
+const nextBtn = document.getElementById('nextDay');
+prevBtn.addEventListener('click', prev);
+nextBtn.addEventListener('click', next);
+document.getElementById('todayBtn').addEventListener('click', () => { index = 0; render(); });
+document.addEventListener('keydown', e => {
+  if(['ArrowLeft','ArrowRight'].includes(e.key)){
+    e.preventDefault();
+    e.key==='ArrowLeft' ? prev() : next();
+  }
+});
+let startX=null;
+document.querySelector('.sheet').addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, {passive:true});
+document.querySelector('.sheet').addEventListener('touchend', e => {
+  if(startX==null) return; const dx = e.changedTouches[0].clientX - startX; startX = null;
+  if(Math.abs(dx) < 30) return;
+  if(dx < 0) next(); else prev();
+});
+render();
+</script>
+</body>
+</html>
